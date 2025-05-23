@@ -1,5 +1,5 @@
 let cart = [];
-const API_BASE_URL = "http://127.0.0.1:8000/api"; // Assuming Django runs on port 8000
+const API_BASE_URL = "https://tareaweb1.onrender.com/api"; // Assuming Django runs on port 8000
 
 document.addEventListener("DOMContentLoaded", () => {
     fetchMenu();
@@ -15,77 +15,64 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function fetchMenu() {
     try {
-        const response = await fetch(`${API_BASE_URL}/productos/`);
-        
-        if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
-        
-        const data = await response.json();
-        renderMenu(data);
+        const response = await fetch(`${API_BASE_URL}/menu/`);
+        if (!response.ok) {
+            throw new Error(`Error al obtener el menú: ${response.statusText}`);
+        }
+        const menuItems = await response.json();
+        renderMenu(menuItems);
     } catch (error) {
-        console.error("Error al obtener el menú:", error);
+        console.error("Error al cargar el menú:", error);
+        const menuContainer = document.getElementById("menu-section");
+        if (menuContainer) {
+            menuContainer.innerHTML = "<p>Error al cargar el menú. Por favor, inténtalo más tarde.</p>";
+        }
     }
 }
 
 function renderMenu(items) {
-    console.log("Datos recibidos:", items);
-    
-    const menuContainer = document.getElementById("menu");
-    menuContainer.innerHTML = ""; // Limpiar el menú antes de cargar los datos
-    
+    const menuContainer = document.getElementById("menu-section");
+    menuContainer.innerHTML = ""; // Limpiar contenido previo
+
     const categories = {};
 
+    // Organizar los elementos del menú por categoría
     items.forEach((item) => {
-        const categoryKey = item.category || 'General'; 
-        if (!categories[categoryKey]) {
-            categories[categoryKey] = [];
+        if (!categories[item.category]) {
+            categories[item.category] = [];
         }
-        categories[categoryKey].push(item);
+        categories[item.category].push(item);
     });
 
+    // Crear secciones para cada categoría
     for (const categoryName in categories) {
-        const section = document.createElement("div");
-        section.classList.add("menu-section");
-        section.id = categoryName.toLowerCase().replace(/\s+/g, '-'); // Create a valid ID
+        const categorySection = document.createElement("div");
+        categorySection.classList.add("menu-category");
 
-        const title = document.createElement("h2");
-        title.textContent = `🍽️ ${categoryName}`;
-        section.appendChild(title);
+        const categoryHeading = document.createElement("h2");
+        categoryHeading.textContent = categoryName;
+        categorySection.appendChild(categoryHeading);
+
+        const categoryItems = document.createElement("div");
+        categoryItems.classList.add("menu-items");
 
         categories[categoryName].forEach((item) => {
-            const card = document.createElement("div");
-            card.classList.add("card", "menu-item-container");
+            const itemCard = document.createElement("div");
+            itemCard.classList.add("menu-item-container");
 
-            const img = document.createElement("img");
-            img.src = item.image || "placeholder.jpg"; // Use item.image
-            img.alt = item.name; // Use item.name
-            img.classList.add("menu-image");
+            itemCard.innerHTML = `
+                <img src="${item.image}" alt="${item.name}" />
+                <h3>${item.name}</h3>
+                <p>${item.description}</p>
+                <p>Precio: $${item.price.toFixed(2)}</p>
+                <button onclick="addToCart(${JSON.stringify(item)})">Agregar al carrito</button>
+            `;
 
-            const nameEl = document.createElement("h2"); // Renamed to avoid conflict with item.name
-            nameEl.className = "menu-name";
-            nameEl.textContent = item.name; // Use item.name
-
-            const desc = document.createElement("p");
-            desc.className = "overlay-text";
-            desc.textContent = item.description; // Use item.description
-
-            const price = document.createElement("p");
-            price.className = "menu-price";
-            price.textContent = `$${parseFloat(item.price).toFixed(2)}`; // Use item.price
-
-            const btn = document.createElement("button");
-            btn.textContent = "Agregar al Carrito";
-            btn.onclick = () => addToCart(item); 
-
-            card.appendChild(img);
-            card.appendChild(nameEl);
-            card.appendChild(desc);
-            card.appendChild(price);
-            card.appendChild(btn);
-
-            section.appendChild(card);
+            categoryItems.appendChild(itemCard);
         });
 
-        menuContainer.appendChild(section);
+        categorySection.appendChild(categoryItems);
+        menuContainer.appendChild(categorySection);
     }
 }
 
@@ -273,5 +260,98 @@ function scrollToSection(sectionId) {
                 });
             }
         }
+    }
+}
+
+// Función para autenticar al usuario
+async function authenticateUser() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/verify-token`, {
+            method: 'GET',
+            credentials: 'include', // Para enviar cookies
+        });
+
+        if (!response.ok) {
+            throw new Error('No autenticado');
+        }
+
+        console.log('Usuario autenticado');
+    } catch (error) {
+        console.error('Error de autenticación:', error);
+        alert('Por favor, inicia sesión para acceder a esta funcionalidad.');
+        window.location.href = 'Login.html';
+    }
+}
+
+// Llamar a la autenticación al cargar la página de administración
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.location.pathname.includes('Admin.html')) {
+        authenticateUser();
+    }
+});
+
+// Función para cargar pedidos en la interfaz administrativa
+async function fetchOrders() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/ordenes/`, {
+            method: 'GET',
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al obtener los pedidos');
+        }
+
+        const orders = await response.json();
+        renderOrders(orders);
+    } catch (error) {
+        console.error('Error al cargar pedidos:', error);
+        alert('No se pudieron cargar los pedidos. Inténtalo más tarde.');
+    }
+}
+
+// Función para renderizar pedidos en la tabla
+function renderOrders(orders) {
+    const ordersTbody = document.getElementById('orders-tbody');
+    ordersTbody.innerHTML = '';
+
+    orders.forEach(order => {
+        const row = document.createElement('tr');
+
+        row.innerHTML = `
+            <td>${order.name}</td>
+            <td>${order.phone}</td>
+            <td>${order.address}</td>
+            <td>${order.products.map(p => p.name).join(', ')}</td>
+            <td>$${order.total}</td>
+            <td>${order.state}</td>
+            <td>
+                <button onclick="updateOrderState(${order.id}, 'Atendido')">Marcar como Atendido</button>
+            </td>
+        `;
+
+        ordersTbody.appendChild(row);
+    });
+}
+
+// Función para actualizar el estado de un pedido
+async function updateOrderState(orderId, newState) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/ordenes/${orderId}/`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ state: newState }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al actualizar el estado del pedido');
+        }
+
+        alert('Estado del pedido actualizado');
+        fetchOrders(); // Recargar pedidos
+    } catch (error) {
+        console.error('Error al actualizar el pedido:', error);
+        alert('No se pudo actualizar el estado del pedido.');
     }
 }

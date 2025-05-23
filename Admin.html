@@ -70,5 +70,25 @@
         </table>
       </section>
     </main>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+          fetchOrders(); // Cargar pedidos al cargar la página
+
+          const filterStatus = document.getElementById('filter-status');
+          filterStatus.addEventListener('change', () => {
+              const selectedStatus = filterStatus.value;
+              const rows = document.querySelectorAll('#orders-tbody tr');
+
+              rows.forEach(row => {
+                  const stateCell = row.querySelector('td:nth-child(6)');
+                  if (selectedStatus === 'todos' || stateCell.textContent === selectedStatus) {
+                      row.style.display = '';
+                  } else {
+                      row.style.display = 'none';
+                  }
+              });
+          });
+      });
+    </script>
   </body>
 </html>

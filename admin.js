@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://127.0.0.1:8000/api"; // Ensure this matches your API URL
+const API_BASE_URL = "https://tareaweb1.onrender.com/api"; // Ensure this matches your API URL
 
 document.addEventListener("DOMContentLoaded", () => {
     const token = localStorage.getItem('authToken');
@@ -32,12 +32,13 @@ async function fetchOrders(statusFilter = 'todos') {
             }
         });
         if (response.status === 401 || response.status === 403) {
-            localStorage.removeItem('authToken'); // Remove invalid token
-            window.location.href = 'Login.html'; // Redirect to login
+            alert("Sesión expirada. Por favor, inicia sesión nuevamente.");
+            localStorage.removeItem('authToken');
+            window.location.href = 'Login.html';
             return;
         }
         if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status}`);
+            throw new Error(`Error al obtener las órdenes: ${response.statusText}`);
         }
         const orders = await response.json();
         renderOrders(orders, statusFilter);
@@ -45,7 +46,7 @@ async function fetchOrders(statusFilter = 'todos') {
         console.error("Error al obtener las órdenes:", error);
         const tbody = document.getElementById("orders-tbody");
         if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="7">Error al cargar las órdenes: ${error.message}</td></tr>`;
+            tbody.innerHTML = "<tr><td colspan='5'>Error al cargar las órdenes. Inténtalo más tarde.</td></tr>";
         }
     }
 }
@@ -146,3 +147,32 @@ async function updateOrderStatus(orderId, newStatus) {
         alert(`Error al actualizar el estado de la orden: ${error.message}`);
     }
 }
+
+document.getElementById("logout-button").addEventListener("click", async () => {
+    const token = localStorage.getItem("authToken");
+
+    if (!token) {
+        alert("No estás autenticado.");
+        return;
+    }
+
+    try {
+        const response = await fetch("https://tareaweb1.onrender.com/logout", {
+            method: "POST",
+            headers: {
+                "Authorization": `Token ${token}`,
+            },
+        });
+
+        if (response.ok) {
+            localStorage.removeItem("authToken");
+            alert("Sesión cerrada exitosamente.");
+            window.location.href = "Login.html";
+        } else {
+            alert("Error al cerrar sesión.");
+        }
+    } catch (error) {
+        console.error("Error al cerrar sesión:", error);
+        alert("Hubo un problema al cerrar sesión. Inténtalo más tarde.");
+    }
+});
